@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClassifyIT — AI Classification Card Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a12;
+    --surface: #12121e;
+    --card-bg: #1a1a2e;
+    --accent1: #e63946;
+    --accent2: #4cc9f0;
+    --accent3: #f4a261;
+    --accent4: #06d6a0;
+    --text: #f0f0f5;
+    --text-dim: #8888aa;
+    --border: #2a2a40;
+    --correct: #06d6a0;
+    --wrong: #e63946;
+    --yellow: #ffd166;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Lato', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(76,201,240,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(76,201,240,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glow-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb1 { width: 400px; height: 400px; background: var(--accent1); top: -100px; right: -100px; }
+  .orb2 { width: 300px; height: 300px; background: var(--accent2); bottom: -50px; left: -50px; }
+
+  /* SCREENS */
+  .screen { position: relative; z-index: 1; display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ====== INTRO SCREEN ====== */
+  #intro {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    gap: 2rem;
+  }
+
+  .logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(230,57,70,0.15);
+    border: 1px solid rgba(230,57,70,0.4);
+    border-radius: 100px;
+    padding: 0.4rem 1rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent1);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    animation: fadeSlideDown 0.6s ease forwards;
+  }
+
+  h1.game-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(3rem, 8vw, 6rem);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    animation: fadeSlideDown 0.7s ease forwards;
+  }
+
+  h1.game-title span.highlight {
+    color: transparent;
+    -webkit-text-stroke: 2px var(--accent2);
+  }
+
+  .subtitle {
+    font-size: 1.1rem;
+    color: #ffffff;
+    max-width: 500px;
+    line-height: 1.7;
+    font-weight: 400;
+    animation: fadeSlideDown 0.8s ease forwards;
+  }
+
+  .scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    max-width: 700px;
+    width: 100%;
+    animation: fadeSlideDown 0.9s ease forwards;
+  }
+
+  .scenario-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .scenario-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .scenario-btn:nth-child(1)::before { background: linear-gradient(135deg, rgba(230,57,70,0.15), transparent); }
+  .scenario-btn:nth-child(2)::before { background: linear-gradient(135deg, rgba(76,201,240,0.15), transparent); }
+  .scenario-btn:nth-child(3)::before { background: linear-gradient(135deg, rgba(244,162,97,0.15), transparent); }
+  .scenario-btn:nth-child(4)::before { background: linear-gradient(135deg, rgba(6,214,160,0.15), transparent); }
+
+  .scenario-btn:hover::before { opacity: 1; }
+  .scenario-btn:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.15); }
+
+  .scenario-btn .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .scenario-btn .s-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+  .scenario-btn .s-desc {
+    font-size: 0.8rem;
+    color: #ffffff;
+    line-height: 1.5;
+  }
+
+  .how-badge {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: fadeSlideDown 1s ease forwards;
+  }
+
+  .how-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: #ffffff;
+  }
+  .how-item .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ====== GAME SCREEN ====== */
+  #game {
+    padding: 0;
+    flex-direction: column;
+  }
+
+  .game-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,18,0.8);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .back-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 8px;
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-family: 'DM Mono', monospace;
+    transition: all 0.2s;
+  }
+  .back-btn:hover { border-color: var(--text-dim); color: var(--text); }
+
+  .scenario-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .scenario-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+  }
+
+  .stat {
+    text-align: center;
+  }
+  .stat-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .stat-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .phase-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(76,201,240,0.1);
+    border: 1px solid rgba(76,201,240,0.3);
+    border-radius: 100px;
+    padding: 0.3rem 0.8rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent2);
+  }
+
+  .phase-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+    animation: pulse 1.5s infinite;
+  }
+
+  /* ====== GAME CONTENT ====== */
+  .game-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 0;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* CARD PLAY AREA */
+  .play-area {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .instruction-bar {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .instruction-bar .inst-icon { font-size: 1.5rem; flex-shrink: 0; }
+  .instruction-bar .inst-text {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .instruction-bar .inst-text strong { color: var(--text); }
+
+  /* Current Card */
+  .current-card-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .card-stack-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    align-self: flex-start;
+  }
+
+  .card-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    align-self: center;
+  }
+
+  /* Shadow cards behind */
+  .card-shadow {
+    position: absolute;
+    width: calc(100% - 20px);
+    height: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    left: 10px;
+  }
+  .card-shadow.s1 { top: 8px; opacity: 0.6; }
+  .card-shadow.s2 { top: 16px; opacity: 0.3; }
+
+  .game-card {
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: default;
+    z-index: 2;
+  }
+
+  .game-card.animate-in {
+    animation: cardFlip 0.5s ease forwards;
+  }
+
+  .game-card.correct-flash {
+    animation: correctPulse 0.5s ease;
+  }
+
+  .game-card.wrong-flash {
+    animation: wrongPulse 0.5s ease;
+  }
+
+  .card-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 100px;
+    padding: 0.3rem 0.8rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+    font-weight: 500;
+  }
+
+  .card-entity-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin-bottom: 0.3rem;
+    line-height: 1.1;
+  }
+
+  .card-description {
+    font-size: 0.875rem;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+  }
+
+  .features-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.6rem;
+  }
+
+  .features-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .feature-tag {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.8rem;
+    font-family: 'DM Mono', monospace;
+    transition: all 0.2s;
+  }
+
+  .feature-tag.highlight-feature {
+    animation: featureGlow 1s ease 0.5s forwards;
+  }
+
+  .question-box {
+    background: rgba(76,201,240,0.06);
+    border: 1px solid rgba(76,201,240,0.2);
+    border-radius: 12px;
+    padding: 1rem;
+  }
+
+  .question-box .q-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.4rem;
+  }
+
+  .question-box .q-text {
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  /* CATEGORIES PANEL */
+  .categories-panel {
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow-y: auto;
+  }
+
+  .panel-header {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .category-option {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .category-option::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .category-option:hover { transform: translateX(4px); border-color: rgba(255,255,255,0.15); }
+
+  .category-option.selected-correct {
+    border-color: var(--correct);
+    background: rgba(6,214,160,0.1);
+  }
+  .category-option.selected-correct::after {
+    background: rgba(6,214,160,0.05);
+    opacity: 1;
+  }
+
+  .category-option.selected-wrong {
+    border-color: var(--wrong);
+    background: rgba(230,57,70,0.1);
+    animation: shake 0.3s ease;
+  }
+
+  .cat-icon { font-size: 1.5rem; margin-bottom: 0.4rem; }
+  .cat-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+  }
+  .cat-desc {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  .cat-count {
+    position: absolute;
+    top: 0.75rem;
+    right: 1rem;
+    background: rgba(255,255,255,0.08);
+    border-radius: 100px;
+    padding: 0.15rem 0.6rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+
+  /* Feedback overlay */
+  .feedback-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .feedback-overlay.show {
+    animation: feedbackPop 1.5s ease forwards;
+    pointer-events: all;
+  }
+
+  .feedback-content {
+    background: var(--card-bg);
+    border-radius: 24px;
+    padding: 2.5rem 3rem;
+    text-align: center;
+    max-width: 420px;
+    border: 1px solid var(--border);
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+  }
+
+  .feedback-icon { font-size: 4rem; margin-bottom: 1rem; }
+  .feedback-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+  }
+  .feedback-title.correct { color: var(--correct); }
+  .feedback-title.wrong { color: var(--wrong); }
+
+  .feedback-explanation {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+  }
+
+  .feedback-explanation .exp-highlight {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* New feature alert */
+  .new-feature-alert {
+    background: linear-gradient(135deg, rgba(244,162,97,0.15), rgba(244,162,97,0.05));
+    border: 1px solid rgba(244,162,97,0.4);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .nf-icon { font-size: 1.5rem; flex-shrink: 0; }
+  .nf-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--accent3);
+    margin-bottom: 0.3rem;
+  }
+  .nf-desc { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+
+  /* Progress bar */
+  .progress-bar-outer {
+    background: rgba(255,255,255,0.06);
+    border-radius: 100px;
+    height: 6px;
+    width: 100%;
+    overflow: hidden;
+  }
+  .progress-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent4));
+    border-radius: 100px;
+    transition: width 0.5s ease;
+  }
+
+  /* ====== RESULTS SCREEN ====== */
+  #results {
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    gap: 2rem;
+  }
+
+  .results-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 3rem;
+    max-width: 600px;
+    width: 100%;
+  }
+
+  .results-score {
+    font-family: 'Syne', sans-serif;
+    font-size: 6rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .results-grade {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 2rem;
+  }
+
+  .results-breakdown {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .breakdown-item { padding: 1rem; background: rgba(255,255,255,0.04); border-radius: 12px; }
+  .breakdown-val { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; }
+  .breakdown-label { font-size: 0.75rem; color: var(--text-dim); font-family: 'DM Mono', monospace; }
+
+  .reflection-section {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    text-align: left;
+  }
+
+  .reflection-section h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: var(--accent2);
+  }
+
+  .reflection-section .insight {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .insight::before { content: '→'; color: var(--accent2); flex-shrink: 0; font-family: monospace; }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent1), #c1121f);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 0.9rem 2.5rem;
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(230,57,70,0.4); }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.9rem 2rem;
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--text-dim); color: var(--text); }
+
+  /* ====== ANIMATIONS ====== */
+  @keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes cardFlip {
+    0% { opacity: 0; transform: rotateY(30deg) scale(0.95); }
+    100% { opacity: 1; transform: rotateY(0) scale(1); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  @keyframes feedbackPop {
+    0% { opacity: 0; transform: scale(0.8); }
+    15% { opacity: 1; transform: scale(1.02); }
+    20% { transform: scale(1); }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  @keyframes correctPulse {
+    0% { box-shadow: 0 0 0 0 rgba(6,214,160,0.5); }
+    50% { box-shadow: 0 0 0 15px rgba(6,214,160,0); border-color: var(--correct); }
+    100% { box-shadow: 0 0 0 0 rgba(6,214,160,0); }
+  }
+
+  @keyframes wrongPulse {
+    0% { box-shadow: 0 0 0 0 rgba(230,57,70,0.5); }
+    50% { box-shadow: 0 0 0 15px rgba(230,57,70,0); border-color: var(--wrong); }
+    100% { box-shadow: 0 0 0 0 rgba(230,57,70,0); }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+
+  @keyframes featureGlow {
+    to {
+      background: rgba(244,162,97,0.15);
+      border-color: rgba(244,162,97,0.5);
+      color: var(--accent3);
+    }
+  }
+
+  /* Score color helpers */
+  .score-great { color: var(--correct); }
+  .score-ok { color: var(--yellow); }
+  .score-low { color: var(--wrong); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .game-content { grid-template-columns: 1fr; }
+    .categories-panel { border-left: none; border-top: 1px solid var(--border); }
+    .scenario-grid { grid-template-columns: 1fr; }
+    .results-breakdown { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="glow-orb orb1"></div>
+<div class="glow-orb orb2"></div>
+
+<!-- ===== INTRO SCREEN ===== -->
+<div id="intro" class="screen active">
+  <div class="logo-badge">⚡ AI Learning Lab</div>
+  <h1 class="game-title">Classify<span class="highlight">IT</span></h1>
+  <p class="subtitle">Learn how AI classifies data by sorting real-world scenarios — then see what happens when new information changes everything.</p>
+
+  <div class="how-badge">
+    <div class="how-item"><div class="dot" style="background:var(--accent2)"></div>Read each character card</div>
+    <div class="how-item"><div class="dot" style="background:var(--accent3)"></div>Sort it into the right group</div>
+    <div class="how-item"><div class="dot" style="background:var(--accent1)"></div>Adapt when features change</div>
+  </div>
+
+  <p style="font-size:0.9rem; color:#ffffff; font-weight:600;">Choose a Scenario</p>
+
+  <div class="scenario-grid">
+    <button class="scenario-btn" onclick="startScenario(0)">
+      <div class="icon">🏥</div>
+      <div class="s-title">Hospital Triage</div>
+      <div class="s-desc">Sort patients by symptoms for emergency care priority</div>
+    </button>
+    <button class="scenario-btn" onclick="startScenario(1)">
+      <div class="icon">🍽️</div>
+      <div class="s-title">Restaurant Menus</div>
+      <div class="s-desc">Classify diners by dietary needs for menu planning</div>
+    </button>
+    <button class="scenario-btn" onclick="startScenario(2)">
+      <div class="icon">✈️</div>
+      <div class="s-title">Airport Security</div>
+      <div class="s-desc">Screen passengers based on risk factors</div>
+    </button>
+    <button class="scenario-btn" onclick="startScenario(3)">
+      <div class="icon">📚</div>
+      <div class="s-title">Library Sorting</div>
+      <div class="s-desc">Organize books by genre and popularity</div>
+    </button>
+  </div>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div id="game" class="screen">
+  <div class="game-header">
+    <div class="header-left">
+      <button class="back-btn" onclick="goHome()">← Back</button>
+      <div>
+        <div class="scenario-label">Scenario</div>
+        <div class="scenario-name" id="scenarioTitle">Hospital Triage</div>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat">
+        <div class="stat-val" id="scoreDisplay">0</div>
+        <div class="stat-label">Score</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" id="streakDisplay">0</div>
+        <div class="stat-label">Streak</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" id="cardDisplay">1/8</div>
+        <div class="stat-label">Card</div>
+      </div>
+    </div>
+    <div class="phase-indicator">
+      <div class="phase-dot"></div>
+      <span id="phaseLabel">Phase 1: Classify</span>
+    </div>
+  </div>
+
+  <div class="game-content">
+    <div class="play-area">
+      <div class="instruction-bar">
+        <div class="inst-icon" id="instructionIcon">🤔</div>
+        <div class="inst-text" id="instructionText">Read the card carefully and <strong>identify the features</strong>. Then pick the category on the right that best fits this character.</div>
+      </div>
+
+      <div id="newFeatureAlert" class="new-feature-alert" style="display:none">
+        <div class="nf-icon">⚠️</div>
+        <div>
+          <div class="nf-title">New Feature Unlocked!</div>
+          <div class="nf-desc" id="newFeatureText">A new feature has been introduced. Re-examine your classifications with this in mind.</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-stack-label" id="cardLabel">Card 1 of 8 — Initial Classification</div>
+        <div style="margin-bottom:0.75rem;">
+          <div class="progress-bar-outer">
+            <div class="progress-bar-inner" id="progressBar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-wrapper" id="cardWrapper">
+        <div class="card-shadow s2"></div>
+        <div class="card-shadow s1"></div>
+        <div class="game-card animate-in" id="mainCard">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- CATEGORIES PANEL -->
+    <div class="categories-panel">
+      <div class="panel-header">📂 Classification Groups — Pick one</div>
+      <div id="categoryOptions">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RESULTS SCREEN ===== -->
+<div id="results" class="screen">
+  <div class="results-card">
+    <div style="font-size:2.5rem;margin-bottom:0.5rem;" id="resultsEmoji">🎉</div>
+    <div class="results-score" id="resultsScore">85<span style="font-size:2rem;color:var(--text-dim)">%</span></div>
+    <div class="results-grade" id="resultsGrade" style="color:var(--correct)">Excellent Classifier!</div>
+
+    <div class="results-breakdown">
+      <div class="breakdown-item">
+        <div class="breakdown-val" id="correctCount" style="color:var(--correct)">—</div>
+        <div class="breakdown-label">Correct</div>
+      </div>
+      <div class="breakdown-item">
+        <div class="breakdown-val" id="wrongCount" style="color:var(--wrong)">—</div>
+        <div class="breakdown-label">Incorrect</div>
+      </div>
+      <div class="breakdown-item">
+        <div class="breakdown-val" id="bestStreak">—</div>
+        <div class="breakdown-label">Best Streak</div>
+      </div>
+    </div>
+
+    <div class="reflection-section">
+      <h3>🧠 AI Connection — What Did You Learn?</h3>
+      <div class="insight">AI classifiers look for <strong>patterns in features</strong> — just like you read each card's traits to decide which group it belongs to.</div>
+      <div class="insight">When <strong>new features appear mid-game</strong>, the model must re-evaluate — this mirrors how AI models are retrained with new data.</div>
+      <div class="insight">Mistakes happen when features are <strong>ambiguous or overlapping</strong> — real AI systems handle this with probability scores, not just yes/no.</div>
+      <div class="insight">Classification works best when the <strong>categories are clearly defined</strong> — vague labels lead to errors in both humans and machines.</div>
+    </div>
+
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+      <button class="btn-primary" onclick="playAgain()">Play Again</button>
+      <button class="btn-secondary" onclick="goHome()">Try Another Scenario</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FEEDBACK OVERLAY ===== -->
+<div class="feedback-overlay" id="feedbackOverlay">
+  <div class="feedback-content">
+    <div class="feedback-icon" id="feedbackIcon">✅</div>
+    <div class="feedback-title" id="feedbackTitle">Correct!</div>
+    <div class="feedback-explanation" id="feedbackExplanation"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// GAME DATA
+// ============================================================
+const SCENARIOS = [
+  {
+    id: 0,
+    title: "Hospital Triage",
+    icon: "🏥",
+    categories: [
+      { name: "Critical / Emergency", icon: "🚨", desc: "Life-threatening — see a doctor immediately", color: "#e63946", key: "critical" },
+      { name: "Infectious Disease", icon: "🦠", desc: "Contagious symptoms — isolation required", color: "#f4a261", key: "infectious" },
+      { name: "Non-Urgent", icon: "🩹", desc: "Minor symptoms — can wait", color: "#4cc9f0", key: "non-urgent" },
+      { name: "Mental Health", icon: "🧠", desc: "Psychological distress", color: "#c77dff", key: "mental" }
+    ],
+    cards: [
+      {
+        name: "Marcus, 67",
+        role: "Patient",
+        description: "Retired teacher, arrived by ambulance",
+        features: ["Chest Pain", "Shortness of Breath", "Sweating", "Left Arm Numbness"],
+        correctCategory: "critical",
+        explanation: "Classic heart attack symptoms (chest pain + arm numbness + shortness of breath) require immediate emergency care — this is a textbook critical triage.",
+        phase: 1
+      },
+      {
+        name: "Priya, 24",
+        role: "Patient",
+        description: "College student, walked in from dorms",
+        features: ["Fever", "Cough", "Fatigue", "Sore Throat"],
+        correctCategory: "infectious",
+        explanation: "Fever + cough in a young person suggests an infectious illness like flu or strep throat. Isolation protocol applies to protect other patients.",
+        phase: 1
+      },
+      {
+        name: "Tommy, 8",
+        role: "Patient",
+        description: "Child, brought in by parent",
+        features: ["Minor Cut", "Bruise", "No Fever"],
+        correctCategory: "non-urgent",
+        explanation: "A minor cut and bruise with no fever is a non-urgent case. The patient is stable and can wait without risk to life.",
+        phase: 1
+      },
+      {
+        name: "Elena, 35",
+        role: "Patient",
+        description: "Office worker, came alone",
+        features: ["Severe Anxiety", "Panic Attack", "Hyperventilation"],
+        correctCategory: "mental",
+        explanation: "Panic attack symptoms without underlying physical emergency fall under mental health triage — a counselor or psychiatrist should be alerted.",
+        phase: 1
+      },
+      {
+        name: "Dev, 52",
+        role: "Patient",
+        description: "Arrived after local outbreak alert",
+        features: ["Fever", "Cough", "Rash", "Recent Travel"],
+        correctCategory: "infectious",
+        explanation: "New feature: Rash! Fever + cough + rash + recent travel is a red flag for a serious infectious disease like measles or even viral hemorrhagic fever — still infectious but now escalated priority.",
+        phase: 2,
+        newFeature: "Rash",
+        newFeatureAlert: "A local outbreak has been reported. 'Rash' has been added as a new symptom feature — watch for it!"
+      },
+      {
+        name: "Greta, 78",
+        role: "Patient",
+        description: "Brought in by family, confused",
+        features: ["Confusion", "High Fever", "Stiff Neck", "Sensitivity to Light"],
+        correctCategory: "critical",
+        explanation: "Confusion + high fever + stiff neck + light sensitivity are classic signs of bacterial meningitis — this is a life-threatening emergency requiring immediate action.",
+        phase: 2
+      },
+      {
+        name: "Jake, 19",
+        role: "Patient",
+        description: "Came in after school, upset",
+        features: ["Sadness", "Hopelessness", "Not Sleeping", "No Physical Symptoms"],
+        correctCategory: "mental",
+        explanation: "No physical symptoms but significant psychological distress. Jake needs a mental health evaluation, not a medical one — classification helps route him to the right specialist.",
+        phase: 2
+      },
+      {
+        name: "Rita, 44",
+        role: "Patient",
+        description: "Came in during lunch break",
+        features: ["Mild Headache", "Tiredness", "Slight Dizziness"],
+        correctCategory: "non-urgent",
+        explanation: "Mild, non-specific symptoms with no red flags. Rita can wait safely — classifying her as non-urgent frees resources for critical cases.",
+        phase: 2
+      }
+    ]
+  },
+  {
+    id: 1,
+    title: "Restaurant Menus",
+    icon: "🍽️",
+    categories: [
+      { name: "Plant-Based", icon: "🥦", desc: "Vegetarian or vegan — no animal products", color: "#06d6a0", key: "plantbased" },
+      { name: "Allergen Alert", icon: "⚠️", desc: "Serious food allergies requiring special prep", color: "#e63946", key: "allergen" },
+      { name: "Standard Menu", icon: "🍖", desc: "No dietary restrictions", color: "#4cc9f0", key: "standard" },
+      { name: "Health-Focused", icon: "🥗", desc: "Low-calorie, low-sugar or medical diet", color: "#f4a261", key: "health" }
+    ],
+    cards: [
+      {
+        name: "Aisha",
+        role: "Diner",
+        description: "Birthday dinner, booked in advance",
+        features: ["Vegan", "No Dairy", "No Meat", "No Eggs"],
+        correctCategory: "plantbased",
+        explanation: "No animal products at all — Aisha goes straight to the plant-based menu. Correct classification means she won't be offered dishes she can't eat.",
+        phase: 1
+      },
+      {
+        name: "Connor",
+        role: "Diner",
+        description: "Spontaneous visit, no pre-booking",
+        features: ["No Dietary Restrictions", "Loves Seafood", "Not Allergic to Anything"],
+        correctCategory: "standard",
+        explanation: "Connor has no restrictions — he gets the full standard menu. Misclassifying him would waste the kitchen's time unnecessarily limiting his options.",
+        phase: 1
+      },
+      {
+        name: "Fatima",
+        role: "Diner",
+        description: "Corporate lunch attendee",
+        features: ["Nut Allergy", "Shellfish Allergy", "Severe Reactions"],
+        correctCategory: "allergen",
+        explanation: "Severe multiple allergies require kitchen staff to prepare food separately with cleaned equipment. This is an allergen-alert classification — life safety is at stake.",
+        phase: 1
+      },
+      {
+        name: "Sam",
+        role: "Diner",
+        description: "Doctor-recommended diet plan",
+        features: ["Diabetic", "Low Sugar", "Low Carb", "No Fried Food"],
+        correctCategory: "health",
+        explanation: "Sam's restrictions are medically driven, not ethical or allergenic. The health-focused menu category covers medical diets and low-calorie options.",
+        phase: 1
+      },
+      {
+        name: "Preet",
+        role: "Diner",
+        description: "Religious observance noted",
+        features: ["Vegetarian", "No Gluten", "Halal Required"],
+        correctCategory: "plantbased",
+        explanation: "New feature: Halal Required! A vegetarian who also requires halal certification needs a very specific menu — plant-based still fits, but kitchen must confirm halal compliance.",
+        phase: 2,
+        newFeature: "Halal Required",
+        newFeatureAlert: "New dietary preference feature: 'Halal Required' — some diners have religious dietary requirements that must be tracked!"
+      },
+      {
+        name: "Ben",
+        role: "Diner",
+        description: "Training for a marathon",
+        features: ["High Protein", "Low Fat", "No Sugar", "Athlete Diet"],
+        correctCategory: "health",
+        explanation: "Athletic dietary requirements are health-focused but not allergy-based. Ben needs a performance nutrition menu.",
+        phase: 2
+      },
+      {
+        name: "Lucy",
+        role: "Diner",
+        description: "Celebrating with family",
+        features: ["Peanut Allergy", "Vegan"],
+        correctCategory: "allergen",
+        explanation: "When someone has both an ethical preference (vegan) AND a dangerous allergy (peanuts), the allergen category takes priority — safety first!",
+        phase: 2
+      },
+      {
+        name: "Tom",
+        role: "Diner",
+        description: "Office party guest",
+        features: ["Eats Everything", "No Preferences Listed"],
+        correctCategory: "standard",
+        explanation: "No features indicating restrictions — Tom gets the standard menu. In AI terms, when no distinguishing features match a special category, default classification applies.",
+        phase: 2
+      }
+    ]
+  },
+  {
+    id: 2,
+    title: "Airport Security",
+    icon: "✈️",
+    categories: [
+      { name: "Pre-Approved / Clear", icon: "✅", desc: "Known traveler, low risk", color: "#06d6a0", key: "clear" },
+      { name: "Standard Screening", icon: "🔍", desc: "Normal check — X-ray and scan", color: "#4cc9f0", key: "standard" },
+      { name: "Enhanced Screening", icon: "🔬", desc: "Extra checks — manual bag search", color: "#f4a261", key: "enhanced" },
+      { name: "Flag for Review", icon: "🚩", desc: "Multiple risk indicators — hold for interview", color: "#e63946", key: "flag" }
+    ],
+    cards: [
+      {
+        name: "Maria, 58",
+        role: "Passenger",
+        description: "Enrolled in TSA PreCheck program",
+        features: ["Frequent Traveler", "TSA Pre-Check", "Known Business Traveler", "Clean Record"],
+        correctCategory: "clear",
+        explanation: "Trusted traveler programs exist because consistent, documented low-risk profiles allow expedited screening — Maria's features all point to pre-approved.",
+        phase: 1
+      },
+      {
+        name: "Oliver, 34",
+        role: "Passenger",
+        description: "Annual vacation flight",
+        features: ["Domestic Flight", "One Bag", "Normal Check-in"],
+        correctCategory: "standard",
+        explanation: "No special flags, no special clearance — Oliver gets a standard screening. Most passengers fall into this category.",
+        phase: 1
+      },
+      {
+        name: "Wei, 29",
+        role: "Passenger",
+        description: "Flight booked 2 hours before departure",
+        features: ["Last-Minute Ticket", "Cash Payment", "International Travel", "Large Luggage"],
+        correctCategory: "enhanced",
+        explanation: "Multiple suspicious travel patterns (last-minute cash purchase + international) without any explanation trigger enhanced screening protocol.",
+        phase: 1
+      },
+      {
+        name: "Ahmed, 41",
+        role: "Passenger",
+        description: "First-time international traveler",
+        features: ["Nervous Behavior", "Inconsistent Answers", "Multiple Passports", "Watch-Listed Name"],
+        correctCategory: "flag",
+        explanation: "A combination of behavioral flags AND documentary inconsistencies AND a name match on a watch list requires immediate referral for interview before boarding.",
+        phase: 1
+      },
+      {
+        name: "Sophie, 22",
+        role: "Passenger",
+        description: "Study abroad student",
+        features: ["Student Visa", "One-Way Ticket", "Large Cash Amount"],
+        correctCategory: "enhanced",
+        explanation: "New feature: Large Cash Amount! A one-way ticket + student visa + large undeclared cash needs enhanced screening — the cash is a new feature that escalates the classification.",
+        phase: 2,
+        newFeature: "Large Cash Amount",
+        newFeatureAlert: "New security feature added: 'Large Cash Amount' — carrying over $10,000 in cash triggers additional screening!"
+      },
+      {
+        name: "James, 65",
+        role: "Passenger",
+        description: "Retired diplomat, frequent flyer",
+        features: ["Diplomatic Status", "Global Entry", "Frequent Flyer Gold", "Verified ID"],
+        correctCategory: "clear",
+        explanation: "Diplomatic status + verified trusted traveler program = pre-approved. High trust + multi-verified identity is the definition of clear classification.",
+        phase: 2
+      },
+      {
+        name: "Nora, 31",
+        role: "Passenger",
+        description: "Returned from travel ban country",
+        features: ["Return from High-Risk Region", "Overstayed Visa Previously", "No Return Ticket"],
+        correctCategory: "flag",
+        explanation: "Previous visa violation + return from high-risk region + no return ticket are three independent red flags. Any one alone might not trigger a flag — all three together demand review.",
+        phase: 2
+      },
+      {
+        name: "Kenji, 27",
+        role: "Passenger",
+        description: "Business trip, booked by employer",
+        features: ["Corporate Booking", "Round Trip", "Laptop Bag", "Normal Check-in"],
+        correctCategory: "standard",
+        explanation: "Employer-booked corporate travel is a standard, explainable pattern with no red flags. Kenji gets normal screening.",
+        phase: 2
+      }
+    ]
+  },
+  {
+    id: 3,
+    title: "Library Sorting",
+    icon: "📚",
+    categories: [
+      { name: "Featured Bestsellers", icon: "⭐", desc: "Popular books — front display table", color: "#ffd166", key: "bestseller" },
+      { name: "Fiction", icon: "📖", desc: "Novels, short stories, creative works", color: "#4cc9f0", key: "fiction" },
+      { name: "Non-Fiction", icon: "🔬", desc: "Educational, reference, biography", color: "#06d6a0", key: "nonfiction" },
+      { name: "Special Collections", icon: "🏛️", desc: "Rare, classic, or restricted access", color: "#c77dff", key: "special" }
+    ],
+    cards: [
+      {
+        name: "The Midnight Library",
+        role: "Book",
+        description: "Matt Haig, 2020",
+        features: ["Novel", "Contemporary Fiction", "Bestseller List", "Award Winner"],
+        correctCategory: "bestseller",
+        explanation: "A recent bestseller with multiple awards belongs in the featured display. In library systems, popularity metrics (borrowings, holds) determine placement — just like AI uses features to sort.",
+        phase: 1
+      },
+      {
+        name: "A Brief History of Time",
+        role: "Book",
+        description: "Stephen Hawking, 1988",
+        features: ["Science", "Non-Fiction", "Educational", "Physics"],
+        correctCategory: "nonfiction",
+        explanation: "Physics education by a renowned scientist — clearly non-fiction. The features 'science' and 'educational' are strong classification signals.",
+        phase: 1
+      },
+      {
+        name: "Dune",
+        role: "Book",
+        description: "Frank Herbert, 1965",
+        features: ["Science Fiction", "Novel", "Classic", "Series First Book"],
+        correctCategory: "fiction",
+        explanation: "Science fiction is a sub-genre of fiction. Despite being a classic, it lacks bestseller status in current circulation — fiction shelving is correct.",
+        phase: 1
+      },
+      {
+        name: "Gutenberg Bible",
+        role: "Book",
+        description: "ca. 1455, facsimile edition",
+        features: ["Rare", "Historical", "Religious Text", "Restricted Access"],
+        correctCategory: "special",
+        explanation: "A rare historical document with restricted access goes to special collections — regular fiction/non-fiction categories don't apply when preservation and access control matter.",
+        phase: 1
+      },
+      {
+        name: "Atomic Habits",
+        role: "Book",
+        description: "James Clear, 2018",
+        features: ["Self-Help", "Non-Fiction", "Bestseller", "High Checkout Rate"],
+        correctCategory: "bestseller",
+        explanation: "New feature: High Checkout Rate! This metric (how often it's borrowed) is a key signal. Bestseller status + high checkout = front table. This is how AI recommendation systems use engagement data.",
+        phase: 2,
+        newFeature: "High Checkout Rate",
+        newFeatureAlert: "New feature added: 'High Checkout Rate' — books borrowed frequently get boosted to the featured display!"
+      },
+      {
+        name: "Shakespeare's First Folio",
+        role: "Book",
+        description: "1623, original print",
+        features: ["Classic Literature", "Extremely Rare", "Literary History", "No Borrowing Allowed"],
+        correctCategory: "special",
+        explanation: "An original First Folio is irreplaceable. Even though it's literature (fiction territory), rarity + no-borrowing policy overrides genre classification.",
+        phase: 2
+      },
+      {
+        name: "Project Hail Mary",
+        role: "Book",
+        description: "Andy Weir, 2021",
+        features: ["Science Fiction", "Bestseller", "Award Nominated", "High Checkout Rate"],
+        correctCategory: "bestseller",
+        explanation: "When a fiction book also has bestseller + high checkout features, it gets promoted to the featured table over genre shelving — multiple strong positive signals override genre.",
+        phase: 2
+      },
+      {
+        name: "Encyclopedia Britannica",
+        role: "Book",
+        description: "2010 Print Edition",
+        features: ["Reference", "Non-Fiction", "Multi-Volume", "In-Library Use Only"],
+        correctCategory: "nonfiction",
+        explanation: "Reference material stays in non-fiction. Despite restricted access (in-library only), it's not rare enough for special collections — it's standard reference non-fiction.",
+        phase: 2
+      }
+    ]
+  }
+];
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let currentScenario = null;
+let currentCardIndex = 0;
+let score = 0;
+let streak = 0;
+let bestStreak = 0;
+let correctAnswers = 0;
+let wrongAnswers = 0;
+let phase2AlertShown = false;
+let answered = false;
+
+function startScenario(scenarioIndex) {
+  currentScenario = SCENARIOS[scenarioIndex];
+  currentCardIndex = 0;
+  score = 0;
+  streak = 0;
+  bestStreak = 0;
+  correctAnswers = 0;
+  wrongAnswers = 0;
+  phase2AlertShown = false;
+  answered = false;
+
+  showScreen('game');
+  document.getElementById('scenarioTitle').textContent = currentScenario.title;
+  renderCategories();
+  renderCard();
+  updateHUD();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goHome() {
+  showScreen('intro');
+}
+
+function playAgain() {
+  const idx = currentScenario.id;
+  startScenario(idx);
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderCategories() {
+  const panel = document.getElementById('categoryOptions');
+  panel.innerHTML = '';
+
+  currentScenario.categories.forEach(cat => {
+    const el = document.createElement('div');
+    el.className = 'category-option';
+    el.id = `cat-${cat.key}`;
+    el.style.borderLeft = `3px solid ${cat.color}`;
+    el.innerHTML = `
+      <div class="cat-count" id="count-${cat.key}">0</div>
+      <div class="cat-icon">${cat.icon}</div>
+      <div class="cat-name">${cat.name}</div>
+      <div class="cat-desc">${cat.desc}</div>
+    `;
+    el.addEventListener('click', () => selectCategory(cat.key));
+    panel.appendChild(el);
+  });
+}
+
+// Category counts
+const categoryCounts = {};
+function initCounts() {
+  currentScenario.categories.forEach(c => categoryCounts[c.key] = 0);
+}
+function incrementCount(key) {
+  if (!categoryCounts[key]) categoryCounts[key] = 0;
+  categoryCounts[key]++;
+  const el = document.getElementById(`count-${key}`);
+  if (el) el.textContent = categoryCounts[key];
+}
+
+function renderCard() {
+  if (currentCardIndex >= currentScenario.cards.length) {
+    showResults();
+    return;
+  }
+
+  const card = currentScenario.cards[currentCardIndex];
+  answered = false;
+
+  // Reset category styling
+  document.querySelectorAll('.category-option').forEach(el => {
+    el.classList.remove('selected-correct', 'selected-wrong');
+    el.style.pointerEvents = 'auto';
+  });
+
+  // Phase 2 alert
+  if (card.phase === 2 && !phase2AlertShown) {
+    phase2AlertShown = true;
+    const alert = document.getElementById('newFeatureAlert');
+    alert.style.display = 'flex';
+    document.getElementById('newFeatureText').textContent = card.newFeatureAlert || "A new feature has been introduced. Re-examine your classifications!";
+    document.getElementById('phaseLabel').textContent = 'Phase 2: Reclassify!';
+    document.getElementById('instructionText').innerHTML = 'New information! <strong>New features may change</strong> how you classify — look carefully at all features.';
+    document.getElementById('instructionIcon').textContent = '⚠️';
+  }
+
+  // Update card label & progress
+  const total = currentScenario.cards.length;
+  document.getElementById('cardLabel').textContent = `Card ${currentCardIndex + 1} of ${total} — ${card.phase === 1 ? 'Initial Classification' : 'Reclassification Phase'}`;
+  document.getElementById('progressBar').style.width = `${(currentCardIndex / total) * 100}%`;
+
+  // Build card HTML
+  const scenarioCat = currentScenario.categories.find(c => c.key === card.correctCategory);
+  const mc = document.getElementById('mainCard');
+  mc.className = 'game-card animate-in';
+
+  const featureTags = card.features.map((f, i) => {
+    const isNew = card.newFeature && f === card.newFeature;
+    return `<span class="feature-tag${isNew ? ' highlight-feature' : ''}">${isNew ? '⚡ ' : ''}${f}</span>`;
+  }).join('');
+
+  mc.innerHTML = `
+    <div class="card-type-badge" style="background:rgba(255,255,255,0.06);color:var(--text-dim);border:1px solid rgba(255,255,255,0.1)">
+      ${currentScenario.icon} ${card.role}
+    </div>
+    <div class="card-entity-name">${card.name}</div>
+    <div class="card-description">${card.description}</div>
+    <div class="features-label">Features Detected</div>
+    <div class="features-list">${featureTags}</div>
+    <div class="question-box">
+      <div class="q-label">🤖 AI Classification Task</div>
+      <div class="q-text">Which category does this ${card.role.toLowerCase()} belong to?</div>
+    </div>
+  `;
+}
+
+function selectCategory(selectedKey) {
+  if (answered) return;
+  answered = true;
+
+  const card = currentScenario.cards[currentCardIndex];
+  const correct = selectedKey === card.correctCategory;
+
+  // Animate category buttons
+  const selectedEl = document.getElementById(`cat-${selectedKey}`);
+  document.querySelectorAll('.category-option').forEach(el => {
+    el.style.pointerEvents = 'none';
+  });
+
+  if (correct) {
+    selectedEl.classList.add('selected-correct');
+    document.getElementById('mainCard').classList.add('correct-flash');
+    score += 10 + (streak * 2);
+    streak++;
+    bestStreak = Math.max(bestStreak, streak);
+    correctAnswers++;
+    incrementCount(selectedKey);
+    showFeedback(true, card);
+  } else {
+    selectedEl.classList.add('selected-wrong');
+    document.getElementById('mainCard').classList.add('wrong-flash');
+    // Also show correct
+    const correctEl = document.getElementById(`cat-${card.correctCategory}`);
+    if (correctEl) correctEl.classList.add('selected-correct');
+    streak = 0;
+    wrongAnswers++;
+    showFeedback(false, card);
+  }
+
+  updateHUD();
+
+  setTimeout(() => {
+    currentCardIndex++;
+    renderCard();
+    updateHUD();
+  }, 2200);
+}
+
+function showFeedback(correct, card) {
+  const overlay = document.getElementById('feedbackOverlay');
+  const icon = document.getElementById('feedbackIcon');
+  const title = document.getElementById('feedbackTitle');
+  const exp = document.getElementById('feedbackExplanation');
+
+  icon.textContent = correct ? '✅' : '❌';
+  title.textContent = correct ? 'Correct!' : 'Not Quite!';
+  title.className = `feedback-title ${correct ? 'correct' : 'wrong'}`;
+
+  const correctCat = currentScenario.categories.find(c => c.key === card.correctCategory);
+  exp.innerHTML = `<span class="exp-highlight">Correct: ${correctCat.name}</span><br><br>${card.explanation}`;
+
+  overlay.className = 'feedback-overlay show';
+  setTimeout(() => { overlay.className = 'feedback-overlay'; }, 2200);
+}
+
+function updateHUD() {
+  document.getElementById('scoreDisplay').textContent = score;
+  document.getElementById('streakDisplay').textContent = streak > 0 ? `${streak}🔥` : streak;
+  document.getElementById('cardDisplay').textContent = `${Math.min(currentCardIndex + 1, currentScenario.cards.length)}/${currentScenario.cards.length}`;
+}
+
+function showResults() {
+  showScreen('results');
+  const total = currentScenario.cards.length;
+  const pct = Math.round((correctAnswers / total) * 100);
+
+  document.getElementById('resultsScore').innerHTML = `${pct}<span style="font-size:2rem;color:var(--text-dim)">%</span>`;
+  document.getElementById('correctCount').textContent = correctAnswers;
+  document.getElementById('wrongCount').textContent = wrongAnswers;
+  document.getElementById('bestStreak').textContent = bestStreak;
+
+  let grade, emoji, color;
+  if (pct >= 90) { grade = 'Expert AI Classifier!'; emoji = '🏆'; color = 'var(--correct)'; }
+  else if (pct >= 70) { grade = 'Solid Classifier!'; emoji = '⭐'; color = 'var(--yellow)'; }
+  else if (pct >= 50) { grade = 'Keep Practicing!'; emoji = '💡'; color = 'var(--accent3)'; }
+  else { grade = 'Try Again!'; emoji = '🤔'; color = 'var(--wrong)'; }
+
+  document.getElementById('resultsEmoji').textContent = emoji;
+  document.getElementById('resultsGrade').textContent = grade;
+  document.getElementById('resultsGrade').style.color = color;
+
+  // Update progress bar to 100%
+  document.getElementById('progressBar').style.width = '100%';
+}
+
+// Init counts on scenario start (override startScenario)
+const _origStart = startScenario;
+// already initializing
+Object.keys(SCENARIOS).forEach(k => {
+  if (SCENARIOS[k] && SCENARIOS[k].categories) {
+    SCENARIOS[k].categories.forEach(c => categoryCounts[c.key] = 0);
+  }
+});
+</script>
+</body>
+</html>
